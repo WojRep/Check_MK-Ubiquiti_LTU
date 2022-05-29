@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 # -*- encoding: utf-8; py-indent-offset: 4 -*-
 #
 # Copyright Wojciech Repinski             wrepinski@gmail.com      
@@ -11,6 +11,7 @@ factory_settings["ubnt_LTU_signal_default_levels"] = {
         'username': ("ubnt"),
         'passwd': ("ubnt"),
         'sshport' : (22),
+	'httpsport': (443),
 }
 
 ubnt_LTU_ant_gain = [
@@ -112,6 +113,8 @@ def check_ubnt_LTU_signal(item, params, info):
         password = params['passwd']
     if 'sshport' in params:
         sshport = params['sshport']
+    if 'httpsport' in params:
+        httpsport = params['httpsport']
 
     ipaddress = _ipaddress(info[1])
     extra_radio = _extra_radio_params(ipaddress,username,password,sshport)
@@ -222,11 +225,11 @@ def check_ubnt_LTU_signal(item, params, info):
                 ("tx_bytes", bs_tx_bytes, None, None, 0),
                 ("tx_pps", bs_tx_pps, None, None, 0),
             ]
-            infotext = " - https://%s:8443/ %s , Rx signal (ch0/ch1): %d/%d dBm, Tx power: %d dBm, Tx signal (ch0/ch1): %d/%d dBm, PHY RX/TX: %.f/%.f Mbps, Modulation: %dx / %dx, Latency: %dms, \
+            infotext = " - https://%s:%d/ %s , Rx signal (ch0/ch1): %d/%d dBm, Tx power: %d dBm, Tx signal (ch0/ch1): %d/%d dBm, PHY RX/TX: %.f/%.f Mbps, Modulation: %dx / %dx, Latency: %dms, \
                         Extra param from BS: [noise: %d, rssi (ch0/ch1/ch2): %d/%d/%d , cinr (Rx/Tx): %d/%d , bler (Rx/Tx): %d/%d   \
                         Extra param from CPE: [noise: %d, rssi (ch0/ch1/ch2): %d/%d/%d , Free Mem: %d, CPU usage %d%%, Uptime %d]  \
                         --- Rx: %.1fMbps Rx pps: %.f , Tx: %.1fMbps Tx pps: %.f" % \
-                (lastIP, model, rxch0, rxch1, tx_power, txch0, txch1, rxmodspeed, txmodspeed, rxmod, txmod, latency, \
+                (lastIP, httpsport, model, rxch0, rxch1, tx_power, txch0, txch1, rxmodspeed, txmodspeed, rxmod, txmod, latency, \
                  bs_noise, bs_rssi_ch0,bs_rssi_ch1,bs_rssi_ch2,bs_cinr_rx,bs_cinr_tx,bs_bler_dl,bs_bler_ul,\
                  sta_noise,sta_rssi_ch0,sta_rssi_ch1,sta_rssi_ch2,sta_freeram,sta_cpu, sta_uptime,\
                  bs_rx_bytes, bs_rx_pps, bs_tx_bytes, bs_tx_pps)

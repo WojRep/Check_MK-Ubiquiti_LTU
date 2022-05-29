@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 register_check_parameters(
     subgroup_networking,
@@ -11,33 +11,33 @@ register_check_parameters(
                  ('rxbyte', Tuple(
                      title=_('LTU Rx Mb/s'),
                      elements = [
-                        Float(title=_('Warning at'),unit='Mb/s',default_value='80.0',allow_empty = False),
-                        Float(title=_('Critical at'),unit='Mb/s',default_value='100.0',allow_empty = False),
+                        Float(title=_('Warning at'),unit='Mb/s',default_value='80.0'),
+                        Float(title=_('Critical at'),unit='Mb/s',default_value='100.0'),
                         ] ) ),
                  ('rxpps', Tuple(
                      title=_('LTU Rx PPS'),
                      elements = [
-                        Float(title=_('Warning at'),unit='pps',default_value='8000',allow_empty = False),
-                        Float(title=_('Critical at'),unit='pps',default_value='10000',allow_empty = False),
+                        Float(title=_('Warning at'),unit='pps',default_value='8000'),
+                        Float(title=_('Critical at'),unit='pps',default_value='10000'),
                         ] ) ),
                  ('txbyte', Tuple(
                      title=_('LTU Tx Mb/s'),
                      elements = [
-                        Float(title=_('Warning at'),unit='Mb/s',default_value='80.0',allow_empty = False),
-                        Float(title=_('Critical at'),unit='Mb/s',default_value='100.0',allow_empty = False),
+                        Float(title=_('Warning at'),unit='Mb/s',default_value='80.0'),
+                        Float(title=_('Critical at'),unit='Mb/s',default_value='100.0'),
                         ] ) ),
                  ('txpps', Tuple(
                      title=_('LTU Tx PPS'),
                      elements = [
-                        Float(title=_('Warning at'),unit='pps',default_value='8000',allow_empty = False),
-                        Float(title=_('Critical at'),unit='pps',default_value='10000',allow_empty = False),
+                        Float(title=_('Warning at'),unit='pps',default_value='8000'),
+                        Float(title=_('Critical at'),unit='pps',default_value='10000'),
                         ] ) ),
-           ], allow_empty = False, 
+           ],  
          ),
         ),
         TextAscii(
             title = _("UBNT LTU Network Stats"),
-            allow_empty = False,
+            
             ),
        match_type = 'dict',
 )
