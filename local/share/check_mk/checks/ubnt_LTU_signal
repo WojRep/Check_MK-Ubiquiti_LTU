@@ -1,0 +1,282 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#
+# Copyright Wojciech Repinski             wrepinski@gmail.com      
+#
+
+factory_settings["ubnt_LTU_signal_default_levels"] = {
+        'rx': (-68.0,-76.0),
+        'tx': (-68.0,-76.0),
+        'ondisconnect': (False),
+        'username': ("ubnt"),
+        'passwd': ("ubnt"),
+        'sshport' : (22),
+}
+
+ubnt_LTU_ant_gain = [
+                        ['LTU-Pro',24],
+                        ['LTU-Lite',13],
+                        ['LTU-LR',26] 
+                    ]
+
+def _extra_radio_params(ip,username,password,port):
+    import paramiko
+    import time
+    import json
+
+    mac = "00:00:00:00:00:00"
+    bs_noise = 0
+    bs_rssi = [0,0,0]
+    bs_cinr_rx = 0
+    bs_cinr_tx = 0
+    bs_bler_dl = 0
+    bs_bler_ul = 0
+    sta_freeram = 0
+    sta_cpu = 0
+    sta_uptime = 0
+    sta_noise = 0
+    sta_rssi = [0,0,0]
+    bs_rx_bytes = 0.0
+    bs_rx_pps = 0.0
+    bs_tx_bytes = 0.0
+    bs_tx_pps = 0.0
+    #
+    ssh_client = paramiko.SSHClient()
+    ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        ssh_client.connect(hostname=ip,port=port, username=username,password=password)
+        stdin, stout, stderr = ssh_client.exec_command('ubntbox status.cgi\n')
+        stout.channel.recv_exit_status()
+        output = stout.readlines()
+        ssh_client.close
+        #
+        jsonout = json.loads(output[2])
+        dictout = dict(jsonout)
+        sta = dictout['wireless']['sta']
+        #
+        for station in sta:
+    
+            mac = station['mac']
+            bs_noise = station['noisefloor']
+            bs_rssi = station['chainrssi']
+            bs_cinr_rx = station['airmax']['rx']['cinr']
+            bs_cinr_tx = station['airmax']['tx']['cinr']
+            bs_bler_dl = station['dl_bler']
+            bs_bler_ul = station['ul_bler']
+            sta_freeram = station['remote']['freeram']
+            sta_cpu = station['remote']['cpuload']
+            sta_uptime = station['remote']['uptime']
+            sta_noise = station['remote']['noisefloor']
+            sta_rssi = station['remote']['chainrssi']
+            bs_rx_bytes = station['stats']['rx_bytes']
+            bs_rx_bytes = float((bs_rx_bytes*8)/1000/1000)
+            bs_rx_pps = station['stats']['rx_pps']
+            bs_tx_bytes = station['stats']['tx_bytes']
+            bs_tx_bytes = float((bs_tx_bytes*8)/1000/1000)
+            bs_tx_pps = station['stats']['tx_pps']
+
+            yield (mac,bs_noise,bs_rssi,bs_cinr_rx,bs_cinr_tx,bs_bler_dl,bs_bler_ul,sta_freeram, sta_cpu, sta_uptime, sta_noise, sta_rssi, bs_rx_bytes, bs_rx_pps, bs_tx_bytes, bs_tx_pps)
+    except paramiko.SSHException as error:
+            yield (mac,bs_noise,bs_rssi,bs_cinr_rx,bs_cinr_tx,bs_bler_dl,bs_bler_ul,sta_freeram, sta_cpu, sta_uptime, sta_noise, sta_rssi, bs_rx_bytes, bs_rx_pps, bs_tx_bytes, bs_tx_pps)
+
+
+def _ipaddress(ipaddresses):
+    for ipaddress in ipaddresses:
+        if ipaddress != "127.0.0.1":
+            return ipaddress[0]
+
+
+
+
+def _real_tx_power(model, tx_eirp):
+    for ubnt_model in ubnt_LTU_ant_gain:
+        tmp_model = ubnt_model[0]
+        if tmp_model == model:
+            tx_power = ubnt_model[1]
+            tx_power = saveint(tx_eirp) - saveint(tx_power)
+            return int(tx_power)
+    tx_power = -30
+    return int(tx_power)
+
+def _oid_to_mac(oid):
+    return ":".join([ "%02X" % int(n) for n in oid.split(".") ])
+
+def inventory_ubnt_LTU_signal_levels(info):
+    return [ (_oid_to_mac(line[0]), "", "ubnt_LTU_signal_default_levels") for line in info[0] ]
+
+def check_ubnt_LTU_signal(item, params, info):
+    if 'username' in params:
+        username = params['username']
+    if 'passwd' in params:
+        password = params['passwd']
+    if 'sshport' in params:
+        sshport = params['sshport']
+
+    ipaddress = _ipaddress(info[1])
+    extra_radio = _extra_radio_params(ipaddress,username,password,sshport)
+
+    for line in info[0]:
+        #
+        if "rx" in params:
+            rx_warn, rx_crit = params["rx"]
+
+        if "tx" in params:
+            tx_warn, tx_crit = params["tx"]
+
+        if "ondisconnect" in params:
+            ondisconnect = params["ondisconnect"]
+        #
+        mac = _oid_to_mac(line[0])
+        if mac == item:
+            bs_noise = 0
+            bs_rssi_ch0 = 0
+            bs_rssi_ch1 = 0
+            bs_rssi_ch2 = 0
+            bs_cinr_rx = 0
+            bs_cinr_tx = 0
+            bs_bler_dl = 0
+            bs_bler_ul = 0
+            sta_freeram = 0
+            sta_cpu = 0
+            sta_uptime = 0
+            sta_noise = 0
+            sta_rssi_ch0 = 0
+            sta_rssi_ch1 = 0
+            sta_rssi_ch2 = 0
+            bs_rx_bytes = 0.0
+            bs_rx_pps = 0.0
+            bs_tx_bytes = 0.0
+            bs_tx_pps = 0.0
+            
+            this_time = time.time()
+
+            for sta in extra_radio:
+                #
+                if item == sta[0]:
+                    bs_noise = saveint(sta[1])
+                    bs_rssi_ch0 = saveint(sta[2][0])
+                    bs_rssi_ch1 = saveint(sta[2][1])
+                    bs_rssi_ch2 = saveint(sta[2][2])
+                    bs_cinr_rx = saveint(sta[3])
+                    bs_cinr_tx = saveint(sta[4])
+                    bs_bler_dl = saveint(sta[5])
+                    bs_bler_ul = saveint(sta[6])
+                    sta_freeram = saveint(sta[7])
+                    sta_cpu = saveint(sta[8])
+                    sta_uptime = saveint(sta[9])
+                    sta_noise = saveint(sta[10])
+                    sta_rssi_ch0 = saveint(sta[11][0])
+                    sta_rssi_ch1 = saveint(sta[11][1])
+                    sta_rssi_ch2 = saveint(sta[11][2])
+                    bs_rx_bytes = savefloat(sta[12])
+                    bs_rx_bytes = get_rate("STA_Tx_Mbps", this_time, bs_rx_bytes, allow_negative=False, onwrap=SKIP)
+                    bs_rx_pps = savefloat(sta[13])
+                    bs_tx_bytes = savefloat(sta[14])
+                    bs_tx_bytes = get_rate("STA_Rx_Mbps", this_time, bs_tx_bytes, allow_negative=False, onwrap=SKIP)
+                    bs_tx_pps = savefloat(sta[15])
+    
+                        
+
+            model = line[9]
+            tx_eirp = line[10]
+            rxch0 = saveint(line[5])
+            rxch1 = saveint(line[6])
+            txch0 = saveint(line[11])
+            txch1 = saveint(line[12])
+            txmodspeed = float(saveint(line[3])/1000)
+            rxmodspeed = float(saveint(line[4])/1000)
+            txmod = saveint(line[1])
+            rxmod = saveint(line[2])
+            tx_power = _real_tx_power(model, tx_eirp)
+            lastIP = line[17]
+            latency = saveint(line[18])
+            perfdata = [ 
+                ("Rx_Modulation_Speed", rxmodspeed, None, None, 0),
+                ("Tx_Modulation_Speed", txmodspeed, None, None, 0),
+                ("Rx_Modulation", rxmod, None, None, 0),
+                ("Tx_modulation", txmod, None, None, 0),
+                ("Rx_Chain0", rxch0, rx_warn, rx_crit, -99, -35),
+                ("Rx_Chain1", rxch1, rx_warn, rx_crit, -99, -35),
+                ("Tx_Chain0", txch0, tx_warn, tx_crit, -99, -35),
+                ("Tx_CHain1", txch1, tx_warn, tx_crit, -99, -35),
+                ("Tx_Power", tx_power, None, None, 0), 
+                ("Latency", latency, None, None, 0),
+                ("X_BS_noisefloor",bs_noise, None, None, 0),
+                ("X_BS_rssi_ch0",bs_rssi_ch0, None, None, 0),
+                ("X_BS_rssi_ch1",bs_rssi_ch1, None, None, 0),
+                ("X_BS_rssi_ch2",bs_rssi_ch2, None, None, 0),
+                ("X_BS_cinr_rx",bs_cinr_rx, None, None, 0),
+                ("X_BS_cinr_tx",bs_cinr_tx, None, None, 0),
+                ("X_BS_bler_dl",bs_bler_dl, None, None, 0),
+                ("X_BS_bler_ul",bs_bler_ul, None, None, 0),
+                ("X_STA_freeram",sta_freeram, None, None, 0),
+                ("X_STA_cpu",sta_cpu, None, None, 0),
+                ("X_STA_uptime",sta_uptime, None, None, 0),
+                ("X_STA_noisefloor",sta_noise, None, None, 0),
+                ("X_STA_rssi_ch0", sta_rssi_ch0, None, None, 0),
+                ("X_STA_rssi_ch1", sta_rssi_ch1, None, None, 0),
+                ("X_STA_rssi_ch2", sta_rssi_ch2, None, None, 0),
+                ("rx_bytes", bs_rx_bytes, None, None, 0),
+                ("rx_pps", bs_rx_pps, None, None, 0),
+                ("tx_bytes", bs_tx_bytes, None, None, 0),
+                ("tx_pps", bs_tx_pps, None, None, 0),
+            ]
+            infotext = " - https://%s:8443/ %s , Rx signal (ch0/ch1): %d/%d dBm, Tx power: %d dBm, Tx signal (ch0/ch1): %d/%d dBm, PHY RX/TX: %.f/%.f Mbps, Modulation: %dx / %dx, Latency: %dms, \
+                        Extra param from BS: [noise: %d, rssi (ch0/ch1/ch2): %d/%d/%d , cinr (Rx/Tx): %d/%d , bler (Rx/Tx): %d/%d   \
+                        Extra param from CPE: [noise: %d, rssi (ch0/ch1/ch2): %d/%d/%d , Free Mem: %d, CPU usage %d%%, Uptime %d]  \
+                        --- Rx: %.1fMbps Rx pps: %.f , Tx: %.1fMbps Tx pps: %.f" % \
+                (lastIP, model, rxch0, rxch1, tx_power, txch0, txch1, rxmodspeed, txmodspeed, rxmod, txmod, latency, \
+                 bs_noise, bs_rssi_ch0,bs_rssi_ch1,bs_rssi_ch2,bs_cinr_rx,bs_cinr_tx,bs_bler_dl,bs_bler_ul,\
+                 sta_noise,sta_rssi_ch0,sta_rssi_ch1,sta_rssi_ch2,sta_freeram,sta_cpu, sta_uptime,\
+                 bs_rx_bytes, bs_rx_pps, bs_tx_bytes, bs_tx_pps)
+            if (rxch0 <= rx_crit) or (rxch1 <= rx_crit) or (txch0 <= tx_crit) or (txch1 <= tx_crit):
+                return (2, "CRIT" + infotext, perfdata)
+            elif (rxch0 <= rx_warn) or (rxch1 <= rx_warn) or (txch0 <= tx_warn) or (txch1 <= tx_warn):
+                return (1, "WARN" + infotext, perfdata)
+            else:
+                return (0, "OK" + infotext, perfdata)
+    if ondisconnect[0] == False:
+        return (0, "OK Station %s not found" % item) 
+    else:
+        return (3, "UNKNOWN - Station %s not found" % item)
+
+
+
+check_info['ubnt_LTU_signal'] = {
+    'check_function'            : check_ubnt_LTU_signal,
+    'service_description'       : 'LTU Station %s',
+    'has_perfdata'              : True,
+    'inventory_function'        : inventory_ubnt_LTU_signal_levels,
+    'snmp_info'                 : [
+                                ( ".1.3.6.1.4.1.41112.1.10.1.4.1", [OID_END, 
+                                1,              # 1 - TxRate
+                                2,              # 2 - RxRate
+                                3,              # 3 - TxCapacity
+                                4,              # 4 - RxCapacity
+                                5,              # 5 - RxPower Chain 0
+                                6,              # 6 - RxPower Chain 1
+                                7,              # 7 - RxPower Chain 0 - Ideal
+                                8,              # 8 - RxPower Chain 1 - Ideal
+                                12,             # 9 - CPE LTU Model
+                                15,             # 10 - TxEIRP
+                                16,             # 11 - TxPower Chain 0
+                                17,             # 12 - TxPower Chain 1
+                                18,             # 13 - TxPower Chain 0 - Ideal
+                                19,             # 14 - TxPower Chain 1 - Ideal
+                                23,             # 15 - Distance
+                                24,             # 16 - Connection uptime
+                                25,             # 17 - CPE LTU Last IP
+                                22,             # 18 - Latency
+                                ]),
+                               (".1.3.6.1",[
+                                "2.1.4.20.1.1",                 # 13 - IP addresseses
+                                ]),
+
+                                ],
+    'snmp_scan_function'        : \
+                               lambda oid: oid(".1.3.6.1.2.1.1.2.0").startswith('.1.3.6.1.4.1.8072.3.2.10'),
+    'default_levels_variable'   : 'ubnt_LTU_signal_default_levels',
+    'group'                     : 'ubnt_LTU_signal',
+}
+

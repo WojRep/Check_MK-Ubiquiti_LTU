@@ -1,0 +1,150 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+# +------------------------------------------------------------------+
+# |             ____ _               _        __  __ _  __           |
+# |            / ___| |__   ___  ___| | __   |  \/  | |/ /           |
+# |           | |   | '_ \ / _ \/ __| |/ /   | |\/| | ' /            |
+# |           | |___| | | |  __/ (__|   <    | |  | | . \            |
+# |            \____|_| |_|\___|\___|_|\_\___|_|  |_|_|\_\           |
+# |                                                                  |
+# | Copyright Wojciech Repinski             wrepinski@gmail.com      |
+# +------------------------------------------------------------------+
+#
+# check_mk is free software;  you can redistribute it and/or modify it
+# under the  terms of the  GNU General Public License  as published by
+# the Free Software Foundation in version 2.  check_mk is  distributed
+# in the hope that it will be useful, but WITHOUT ANY WARRANTY;  with-
+# out even the implied warranty of  MERCHANTABILITY  or  FITNESS FOR A
+# PARTICULAR PURPOSE. See the  GNU General Public License for more de-
+# ails.  You should have  received  a copy of the  GNU  General Public
+# License along with GNU Make; see the file  COPYING.  If  not,  write
+# to the Free Software Foundation, Inc., 51 Franklin St,  Fifth Floor,
+# Boston, MA 02110-1301 USA.
+
+#ubnt_LTU_stats_default_levels = (-68, -76) # in db
+
+factory_settings["ubnt_LTU_stats_default_levels"] = {
+        'rxbyte': (80.0,100.0),
+        'txbyte': (80.0,100.0),
+        'rxpps': (8000.0,10000.0),
+        'txpps': (8000.0,10000.0),
+}
+
+
+def inventory_ubnt_LTU_stats_levels(info):
+###    print info
+    inventory=[]
+    for line in info:
+        if len(line) > 0:
+            yield ('Radio',"ubnt_LTU_stats_default_levels")
+            yield ('Eth',"ubnt_LTU_stats_default_levels")
+
+def check_ubnt_LTU_stats(item, params, info):
+
+
+
+    for item_parm in info:
+        if "rxbyte" in params:
+            rxbyte_warn, rxbyte_crit = params["rxbyte"]
+        else:
+            rxbyte_warn, rxbyte_crit = params
+        if "txbyte" in params:
+            txbyte_warn, txbyte_crit = params["txbyte"]
+        else:
+            txbyte_warn, txbyte_crit = params
+
+        if "rxpps" in params:
+            rxpps_warn, rxpps_crit = params["rxpps"]
+        else:
+            rxpps_warn, rxpps_crit = params
+        if "txpps" in params:
+            txpps_warn, txpps_crit = params["txpps"]
+        else:
+            txpps_warn, txpps_crit = params
+        #
+        if item == "Radio":
+            this_time = time.time()
+            
+            txbyte=savefloat(item_parm[1])*8/1000/1000
+            rxbyte=savefloat(item_parm[2])*8/1000/1000
+            txbyte=savefloat(txbyte)
+            rxbyte=savefloat(rxbyte)
+            txpps=savefloat(item_parm[3])
+            rxpps=savefloat(item_parm[4])
+
+            txbyte = get_rate("Radio_TX_Mbps", this_time, txbyte, allow_negative=False, onwrap=SKIP)
+            rxbyte = get_rate("Radio_RX_Mbps", this_time, rxbyte, allow_negative=False, onwrap=SKIP)
+            
+            perfdata = [ 
+                ("Radio_Tx_Mbps", txbyte, txbyte_warn, txbyte_crit, 0),
+                ("Radio_Rx_Mbps", rxbyte, rxbyte_warn, rxbyte_crit, 0),
+                ("Radio_Tx_PPS", txpps, txpps_warn, txpps_crit, 0),
+                ("Radio_Rx_PPS", rxpps, rxpps_warn, rxpps_crit, 0),
+            ]
+            infotext = " - Tx Byte: %.2f Mb/s, Rx Byte: %.2f Mb/s, Tx Packets: %.f pps, Rx Packets: %.f pps" % \
+                (txbyte, rxbyte, txpps, rxpps)
+            if (rxbyte >= rxbyte_crit) or (txbyte >= txbyte_crit) or (rxpps >= rxpps_crit) or (txpps >= txpps_crit):
+                return (2, "CRIT" + infotext, perfdata)
+            elif (rxbyte >= rxbyte_warn) or (txbyte >= txbyte_warn) or (rxpps >= rxpps_warn) or (txpps >= txpps_warn):
+                return (1, "WARN" + infotext, perfdata)
+            else:
+                return (0, "OK" + infotext, perfdata)
+
+
+        if item == "Eth":
+            this_time = time.time()
+
+            txbyte_eth=savefloat(item_parm[5])*8/1000/1000
+            rxbyte_eth=savefloat(item_parm[6])*8/1000/1000
+            txbyte_eth=savefloat(txbyte_eth)
+            rxbyte_eth=savefloat(rxbyte_eth)
+            txpps_eth=savefloat(item_parm[7])
+            rxpps_eth=savefloat(item_parm[8])
+
+            txbyte_eth = get_rate("Eth_TX_Mbps", this_time, txbyte_eth, allow_negative=False, onwrap=SKIP)
+            rxbyte_eth = get_rate("Eth_RX_Mbps", this_time, rxbyte_eth, allow_negative=False, onwrap=SKIP)
+
+            perfdata = [ 
+                ("Eth_Tx_Mbps", txbyte_eth, txbyte_warn, txbyte_crit, 0),
+                ("Eth_Rx_Mbps", rxbyte_eth, rxbyte_warn, rxbyte_crit, 0),
+                ("Eth_Tx_PPS", txpps_eth, txpps_warn, txpps_crit, 0),
+                ("Eth_Rx_PPS", rxpps_eth, rxpps_warn, rxpps_crit, 0),
+            ]
+            infotext = " - Tx Byte: %.2f Mb/s, Rx Byte: %.2f Mb/s, Tx Packets: %.f pps, Rx Packets: %.f pps" % \
+                (txbyte_eth*8, rxbyte_eth, txpps_eth, rxpps_eth)
+
+            if (rxbyte_eth >= rxbyte_crit) or (txbyte_eth >= txbyte_crit) or (rxpps_eth >= rxpps_crit) or (txpps_eth >= txpps_crit):
+                return (2, "CRIT" + infotext, perfdata)
+            elif (rxbyte_eth >= rxbyte_warn) or (txbyte_eth >= txbyte_warn) or (rxpps_eth >= rxpps_warn) or (txpps_eth >= txpps_warn):
+                return (1, "WARN" + infotext, perfdata)
+            else:
+                return (0, "OK" + infotext, perfdata)
+
+
+        return (3, "UNKNOWN - Station %s not found" % item)
+
+check_info['ubnt_LTU_stats'] = {
+    'check_function'            : check_ubnt_LTU_stats,
+    'service_description'       : 'Interface LTU %s',
+    'has_perfdata'              : True,
+    'inventory_function'        : inventory_ubnt_LTU_stats_levels,
+    'snmp_info'                 : ( ".1.3.6.1", [
+                                OID_END, 
+                                "4.1.41112.1.10.1.5.1",         # 1 - LTU Radio Tx Byte
+                                "4.1.41112.1.10.1.5.3",         # 2 - LTU Radio Rx Byte
+                                "4.1.41112.1.10.1.5.2",         # 3 - LTU Radio Tx pps
+                                "4.1.41112.1.10.1.5.4",         # 4 - LTU Radio Rx pps
+                                "4.1.41112.1.10.1.6.1",         # 5 - LTU Eth Tx Byte
+                                "4.1.41112.1.10.1.6.3",         # 6 - LTU Eth Rx Byte
+                                "4.1.41112.1.10.1.6.2",         # 7 - LTU Eth Tx pps
+                                "4.1.41112.1.10.1.6.4",         # 8 - LTU Eth Rx pps
+                                "4.1.41112.1.10.1.7.2",         # 9 - GPS Fix, 0-unknown, 1-nofix, 2-fix2D, 3-fix3D
+                                "4.1.41112.1.10.1.7.7",         # 10 - GPS Satellites Visible
+                                "4.1.41112.1.10.1.7.8",         # 11 - GPS Satelite Tracked
+                                "4.1.41112.1.10.1.7.9",         # 12 - GPS HDoP
+                                ]),
+    'snmp_scan_function'        : \
+                               lambda oid: oid(".1.3.6.1.2.1.1.2.0").startswith('.1.3.6.1.4.1.8072.3.2.10'),
+    'default_levels_variable'   : 'ubnt_LTU_stats_default_levels',
+    'group'                     : 'ubnt_LTU_stats',
+
